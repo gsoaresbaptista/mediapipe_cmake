@@ -123,11 +123,14 @@ make -j$(nproc)
 
 #### Step 3: Configure MediaPipe CMake
 
-Edit `mediapipe_cmake/CMakeLists.txt` and set your opencv_lite build path:
+#### Step 3: Configure MediaPipe CMake
 
-```cmake
-# Line 15 in CMakeLists.txt
-set(OpenCV_DIR "/path/to/your/opencv_lite/build")
+Set `OpenCV_DIR` when configuring CMake.
+
+Example:
+
+```bash
+cmake -S mediapipe_cmake -B build -DOpenCV_DIR=/path/to/your/opencv_lite/build
 ```
 
 #### Step 4: Build MediaPipe CMake
