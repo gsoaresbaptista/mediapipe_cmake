@@ -10,9 +10,12 @@ else ()
     message(STATUS "BUILD_DEMO is OFF")
 endif ()
 
-# set OpenCV_lite build DIR
-# NOTE: please set the OpenCV_DIR to the opencv_lite build directory
-set(OpenCV_DIR "/home/mpp_project/opencv_lite/build") # change to your opencv_lite build directory
+set(OpenCV_DIR "" CACHE PATH "Path to OpenCV/opencv_lite build directory (REQUIRED)")
+
+# Make OpenCV_DIR mandatory
+if (NOT DEFINED OpenCV_DIR OR OpenCV_DIR STREQUAL "")
+    message(FATAL_ERROR "OpenCV_DIR is required but not set. Please specify it with -DOpenCV_DIR=/path/to/opencv/build")
+endif ()
 
 # for android platform, we need assign the platform based lib, at leaset the "arm64-v8a" and "armeabi-v7a"
 # Please orgnize the folder like the following:
