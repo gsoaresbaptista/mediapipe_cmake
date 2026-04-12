@@ -21,6 +21,8 @@ limitations under the License.
 
 #include "hand_landmark.h"
 #include "hand_landmark_impl.h"
+#include <set>
+#include <algorithm>
 
 using namespace cv;
 namespace mpp
@@ -33,13 +35,11 @@ HandLandmarker::HandLandmarker(std::string detector_path, std::string landmark_p
 
     // create hand detector
     handDetector = makePtr<HandDetector>(detector_path, maxHandNum, device);
-    smoother = makePtr<OneEuroSmoother>(0.05f, 50.f);
 }
 
 HandLandmarker::HandLandmarker(int _maxHandNum, int _device)
 : maxHandNum(_maxHandNum), device(_device)
 {
-    smoother = makePtr<OneEuroSmoother>(0.05f, 50.f);
 }
 
 void HandLandmarker::loadDetectModel(std::string detector_path)
@@ -105,6 +105,64 @@ Point2f computeCenterFromLandmark(const BoxKp3& box, int imgW, int imgH)
         min_y = std::min(min_y, pointList[palmIndex[i]].y);
     }
     return Point2f((max_x + min_x) * 0.5f * imgW, (max_y + min_y) * 0.5f * imgH);
+}
+
+int HandLandmarker::getHandId(const PointList3f& landmarks)
+{
+    constexpr int kWristJoint = 0;
+    constexpr float kGridSize = 0.1f;
+    int gx = static_cast<int>(landmarks[kWristJoint].x / kGridSize);
+    int gy = static_cast<int>(landmarks[kWristJoint].y / kGridSize);
+    return gy * 1000 + gx;
+}
+
+void HandLandmarker::manageHandTrackers(std::vector<BoxKp3>& currentHands, int64_t timestamp)
+{
+    std::set<int> currentIds;
+    for (auto& hand : currentHands)
+    {
+        int id = getHandId(hand.points);
+        currentIds.insert(id);
+
+        auto it = std::find_if(handTrackers_.begin(), handTrackers_.end(),
+                               [id](const HandTracker& ht) { return ht.id == id; });
+
+        if (it == handTrackers_.end())
+        {
+            HandTracker ht;
+            ht.id = id;
+            ht.smoother = makePtr<OneEuroSmoother>(0.05f, 50.f);
+            ht.lastResult = hand;
+            handTrackers_.push_back(ht);
+            it = handTrackers_.end() - 1;
+        }
+
+        PointList3f smoothed;
+        it->smoother->apply(hand.points, timestamp, smoothed);
+        hand.points = smoothed;
+        it->lastResult = hand;
+    }
+
+    for (auto it = handTrackers_.begin(); it != handTrackers_.end(); )
+    {
+        if (currentIds.find(it->id) == currentIds.end())
+        {
+            it = handTrackers_.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    if (handTrackers_.empty())
+    {
+        preBoxPoints.clear();
+    }
+    else
+    {
+        preBoxPoints = currentHands;
+    }
 }
 
 void HandLandmarker::runDetect(const cv::Mat& img, std::vector<BoxKp2>& boxes, std::vector<float>& angles,
@@ -346,27 +404,11 @@ void HandLandmarker::runVideo(const cv::Mat &img, std::vector<BoxKp3> &boxLandma
         boxLandmark.push_back(box);
     }
 
-    // store the current hand landmark
-    if (!boxLandmark.empty())
-    {
-        if (boxLandmark.size() == 1)
-        {
-            PointList3f landmarkSmoothed;
-            int64_t timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
-                    std::chrono::high_resolution_clock::now().time_since_epoch())
-                    .count();
+    int64_t timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::high_resolution_clock::now().time_since_epoch())
+            .count();
 
-            smoother->apply(boxLandmark[0].points, timestamp, landmarkSmoothed);
-
-            boxLandmark[0].points = landmarkSmoothed;
-        }
-        preBoxPoints = boxLandmark;
-    }
-    else
-    {
-        smoother->reset();
-        preBoxPoints.clear();
-    }
+    manageHandTrackers(boxLandmark, timestamp);
 }
 
 } // namespace mpp
