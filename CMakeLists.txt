@@ -4,6 +4,18 @@ project(MPP_cmake)
 set(CMAKE_CXX_STANDARD 14)
 option(BUILD_DEMO "IF BUILD LIB WITH DEMO" ON)
 
+option(MPP_BUILD_FACE_DETECTOR "Build face detector" OFF)
+option(MPP_BUILD_FACE_LANDMARKER "Build face landmarker" OFF)
+option(MPP_BUILD_HAND_DETECTOR "Build hand detector" ON)
+option(MPP_BUILD_HAND_LANDMARKER "Build hand landmarker" ON)
+option(MPP_BUILD_POSE_DETECTOR "Build pose detector" ON)
+option(MPP_BUILD_POSE_LANDMARKER "Build pose landmarker" ON)
+option(MPP_BUILD_INTERACTIVE_SEGMENTER "Build interactive segmenter" OFF)
+option(MPP_BUILD_HAIR_SEGMENTER "Build hair segmenter" OFF)
+option(MPP_BUILD_SELFIE_SEGMENTER "Build selfie segmenter" OFF)
+option(MPP_BUILD_IRIS_TRACKER "Build iris tracker" OFF)
+option(MPP_BUILD_HOLISTIC_TRACKER "Build holistic tracker" OFF)
+
 if (BUILD_DEMO)
     message(STATUS "BUILD_DEMO is ON")
 else ()
@@ -64,35 +76,56 @@ endif ()
 
 
 #mpp_vision face detector
-include(${CMAKE_SOURCE_DIR}/face_detector/CMakeLists.txt)
+if(MPP_BUILD_FACE_DETECTOR)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/face_detector/CMakeLists.txt)
+endif()
 
 #mpp_vision face landmarker
-include(${CMAKE_SOURCE_DIR}/face_landmarker/CMakeLists.txt)
+if(MPP_BUILD_FACE_LANDMARKER)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/face_landmarker/CMakeLists.txt)
+endif()
 
 #mpp_vision hand detector
-include(${CMAKE_SOURCE_DIR}/hand_detector/CMakeLists.txt)
+if(MPP_BUILD_HAND_DETECTOR)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/hand_detector/CMakeLists.txt)
+endif()
 
 #mpp_vision hand landmark
-include(${CMAKE_SOURCE_DIR}/hand_landmarker/CMakeLists.txt)
+if(MPP_BUILD_HAND_LANDMARKER)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/hand_landmarker/CMakeLists.txt)
+endif()
 
 #mpp_vision pose detector
-include(${CMAKE_SOURCE_DIR}/pose_detector/CMakeLists.txt)
+if(MPP_BUILD_POSE_DETECTOR)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/pose_detector/CMakeLists.txt)
+endif()
 
 #mpp_vision pose landmark
-include(${CMAKE_SOURCE_DIR}/pose_landmarker/CMakeLists.txt)
+if(MPP_BUILD_POSE_LANDMARKER)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/pose_landmarker/CMakeLists.txt)
+endif()
 
 #mpp_vision interactive_segmenter
-include(${CMAKE_SOURCE_DIR}/interactive_segmenter/CMakeLists.txt)
+if(MPP_BUILD_INTERACTIVE_SEGMENTER)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/interactive_segmenter/CMakeLists.txt)
+endif()
 
 #mpp_vision hair_segmenter
-include(${CMAKE_SOURCE_DIR}/hair_segmenter/CMakeLists.txt)
+if(MPP_BUILD_HAIR_SEGMENTER)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/hair_segmenter/CMakeLists.txt)
+endif()
 
 #mpp_vision selfie_segmenter
-include(${CMAKE_SOURCE_DIR}/selfie_segmenter/CMakeLists.txt)
+if(MPP_BUILD_SELFIE_SEGMENTER)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/selfie_segmenter/CMakeLists.txt)
+endif()
 
 #mpp_vision iris_tracker
-include(${CMAKE_SOURCE_DIR}/iris_tracker/CMakeLists.txt)
+if(MPP_BUILD_IRIS_TRACKER)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/iris_tracker/CMakeLists.txt)
+endif()
 
 #mpp_vision holistic tracker
-include(${CMAKE_SOURCE_DIR}/holistic_tracker/CMakeLists.txt)
-
+if(MPP_BUILD_HOLISTIC_TRACKER)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/holistic_tracker/CMakeLists.txt)
+endif()
