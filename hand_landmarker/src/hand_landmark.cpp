@@ -107,62 +107,73 @@ Point2f computeCenterFromLandmark(const BoxKp3& box, int imgW, int imgH)
     return Point2f((max_x + min_x) * 0.5f * imgW, (max_y + min_y) * 0.5f * imgH);
 }
 
-int HandLandmarker::getHandId(const PointList3f& landmarks)
-{
-    constexpr int kWristJoint = 0;
-    constexpr float kGridSize = 0.1f;
-    int gx = static_cast<int>(landmarks[kWristJoint].x / kGridSize);
-    int gy = static_cast<int>(landmarks[kWristJoint].y / kGridSize);
-    return gy * 1000 + gx;
+namespace {
+Point2f computePalmCenter(const PointList3f& points) {
+    constexpr int kPalmIndices[] = {0, 5, 9, 13, 17};
+    float x = 0, y = 0;
+    for (int idx : kPalmIndices) {
+        x += points[idx].x;
+        y += points[idx].y;
+    }
+    return Point2f(x / 5.f, y / 5.f);
+}
 }
 
 void HandLandmarker::manageHandTrackers(std::vector<BoxKp3>& currentHands, int64_t timestamp)
 {
-    std::set<int> currentIds;
+    constexpr float kDistanceThreshold = 0.2f;
+
+    std::vector<bool> matched(handTrackers_.size(), false);
+
     for (auto& hand : currentHands)
     {
-        int id = getHandId(hand.points);
-        currentIds.insert(id);
+        if (hand.points.empty()) continue;
 
-        auto it = std::find_if(handTrackers_.begin(), handTrackers_.end(),
-                               [id](const HandTracker& ht) { return ht.id == id; });
+        Point2f currPalmCenter = computePalmCenter(hand.points);
 
-        if (it == handTrackers_.end())
+        int bestIdx = -1;
+        float bestDist = kDistanceThreshold;
+
+        for (size_t i = 0; i < handTrackers_.size(); ++i)
         {
+            if (matched[i]) continue;
+            if (handTrackers_[i].lastResult.points.empty()) continue;
+
+            Point2f lastPalmCenter = computePalmCenter(handTrackers_[i].lastResult.points);
+            float dist = std::sqrt(std::pow(currPalmCenter.x - lastPalmCenter.x, 2.f) + std::pow(currPalmCenter.y - lastPalmCenter.y, 2.f));
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestIdx = i;
+            }
+        }
+
+        if (bestIdx < 0) {
             HandTracker ht;
-            ht.id = id;
             ht.smoother = makePtr<OneEuroSmoother>(0.05f, 50.f);
             ht.lastResult = hand;
             handTrackers_.push_back(ht);
-            it = handTrackers_.end() - 1;
+            matched.push_back(false);
+            bestIdx = handTrackers_.size() - 1;
         }
+
+        matched[bestIdx] = true;
 
         PointList3f smoothed;
-        it->smoother->apply(hand.points, timestamp, smoothed);
+        handTrackers_[bestIdx].smoother->apply(hand.points, timestamp, smoothed);
         hand.points = smoothed;
-        it->lastResult = hand;
+        handTrackers_[bestIdx].lastResult = hand;
     }
 
-    for (auto it = handTrackers_.begin(); it != handTrackers_.end(); )
+    for (size_t i = 0; i < handTrackers_.size(); )
     {
-        if (currentIds.find(it->id) == currentIds.end())
-        {
-            it = handTrackers_.erase(it);
-        }
-        else
-        {
-            ++it;
+        if (!matched[i]) {
+            handTrackers_.erase(handTrackers_.begin() + i);
+        } else {
+            ++i;
         }
     }
 
-    if (handTrackers_.empty())
-    {
-        preBoxPoints.clear();
-    }
-    else
-    {
-        preBoxPoints = currentHands;
-    }
+    preBoxPoints = currentHands;
 }
 
 void HandLandmarker::runDetect(const cv::Mat& img, std::vector<BoxKp2>& boxes, std::vector<float>& angles,
@@ -224,52 +235,7 @@ void getRectFromHandLandmark(const BoxKp3& points, int imgW, int imgH, Point2f& 
 // hand detector for each frame.
 void HandLandmarker::runTrack(const cv::Mat& img, std::vector<BoxKp2>& boxes, std::vector<float>& angles, std::vector<cv::Point2f>& palmCenters)
 {
-    // TODO: try to optimized the hand tracking strategy. Right now the effect is not good enough.
-    if (preBoxPoints.size() >= maxHandNum) // get bounding box from pre landmark.
-    {
-        int preHandNum = preBoxPoints.size();
-        boxes.resize(preHandNum);
-        angles.resize(preHandNum);
-        palmCenters.resize(preHandNum);
-
-        for (int i = 0; i < preHandNum; i++)
-        {
-            BoxKp2 box = {};
-            Rect2f rect = {};
-
-            float angle = computeRotateFromLandmark(preBoxPoints[i].points);
-            palmCenters[i] = computeCenterFromLandmark(preBoxPoints[i], img.cols, img.rows);
-            getRectFromHandLandmark(preBoxPoints[i], img.cols, img.rows, palmCenters[i], rect);
-            boxes[i].rect = rect;
-            angles[i] = angle;
-        }
-
-#if 0
-        // only for box debug
-        std::vector<BoxKp2> boxes_d;
-        std::vector<float> angles_d;
-        std::vector<cv::Point2f> palmCenters_d;
-        runDetect(img, boxes_d, angles_d, palmCenters_d);
-
-        // draw tracking and detect for a same img so that to refine the tracking box to feet the size of detection box.
-
-        // draw tracking
-        for (int i = 0; i < preHandNum; i++)
-        {
-            rectangle(img, boxes[i].rect, Scalar(255, 0, 0), 2);
-        }
-
-        // draw detection
-        for (int i = 0; i < boxes_d.size(); i++)
-        {
-            rectangle(img, boxes_d[i].rect, Scalar(0, 255, 0), 2);
-        }
-#endif
-    }
-    else
-    {
-        runDetect(img, boxes, angles, palmCenters);
-    }
+    runDetect(img, boxes, angles, palmCenters);
 }
 
 float HandLandmarker::computeRotateFromDetect(const BoxKp2& box)

@@ -111,12 +111,10 @@ private:
     float threshold = 0.5f;
 
     struct HandTracker {
-        int id;
         cv::Ptr<OneEuroSmoother> smoother;
         BoxKp3 lastResult;
     };
     std::vector<HandTracker> handTrackers_;
-    int getHandId(const PointList3f& landmarks);
     void manageHandTrackers(std::vector<BoxKp3>& currentHands, int64_t timestamp);
     std::vector<BoxKp3> preBoxPoints;
     cv::Ptr<HandLandmarker_Impl> handLanmark_impl = nullptr;
