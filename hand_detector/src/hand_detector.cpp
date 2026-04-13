@@ -53,7 +53,14 @@ void HandDetector::init()
     // model pre-processing.
     inputName = netHandDet->getInputName();
     inputShape = netHandDet->getInputShape();
-    netHandDet->setNumThreads(8);
+    
+    if (device == 0) {
+        netHandDet->setNumThreads(8);
+        netHandDet->setPreferableBackend(dnn::DNN_BACKEND_CPU);
+    } else {
+        netHandDet->setNumThreads(0);
+        netHandDet->setPreferableBackend(dnn::DNN_BACKEND_GPU);
+    }
 
     CV_Assert(inputShape.size() == 1);
     CV_Assert(inputShape[0].size() == 4);

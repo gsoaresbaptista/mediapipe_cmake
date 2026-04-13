@@ -25,6 +25,7 @@ namespace mpp
 {
 
 HandLandmarker_Impl::HandLandmarker_Impl(std::string modelPath, int device)
+    : device(device)
 {
     // Load MNN model by opencv.
     netHandDet = makePtr<dnn::Net>(dnn::readNetFromMNN(modelPath));
@@ -32,6 +33,7 @@ HandLandmarker_Impl::HandLandmarker_Impl(std::string modelPath, int device)
 }
 
 HandLandmarker_Impl::HandLandmarker_Impl(const char* buffer, long buffer_size, std::string model_suffix, int device)
+    : device(device)
 {
     CV_Assert(model_suffix == "mnn");
     // Load MNN model by opencv.
@@ -43,7 +45,15 @@ void HandLandmarker_Impl::init()
 {
     inputName = netHandDet->getInputName();
     inputShape = netHandDet->getInputShape();
-    netHandDet->setNumThreads(4);
+    
+    // device comes from constructor - 0 = CPU, otherwise = GPU (MNN OpenCL)
+    if (device == 0) {
+        netHandDet->setNumThreads(4);
+        netHandDet->setPreferableBackend(dnn::DNN_BACKEND_CPU);
+    } else {
+        netHandDet->setNumThreads(0);
+        netHandDet->setPreferableBackend(dnn::DNN_BACKEND_GPU);
+    }
 
     CV_Assert(inputShape.size() == 1);
     CV_Assert(inputShape[0].size() == 4);

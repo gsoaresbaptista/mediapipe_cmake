@@ -54,6 +54,7 @@ private:
     cv::Scalar mean;
     cv::Scalar scalefactor;
     int inputHeight, inputWidth;
+    int device;
     std::vector<std::string> inputName;
     std::vector<std::vector<int> > inputShape;
     std::vector<std::string> outputName;
